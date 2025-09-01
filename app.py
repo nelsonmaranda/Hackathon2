@@ -9,7 +9,7 @@ import re
 import uuid
 import random
 from datetime import datetime, timedelta
-import pymysql
+import psycopg2
 from dotenv import load_dotenv
 import hashlib
 import secrets
@@ -36,14 +36,31 @@ HF_API_URL = "https://api-inference.huggingface.co/models/deepset/roberta-base-s
 HF_HEADERS = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY', '')}"}
 
 # Database configuration
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'database': os.getenv('DB_NAME', 'eduverse'),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', ''),
-    'charset': 'utf8mb4',
-    'autocommit': True
-}
+DB_TYPE = os.getenv('DB_TYPE', 'postgresql')
+if DB_TYPE == 'postgresql':
+    DB_CONFIG = {
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'database': os.getenv('DB_NAME', 'eduverse'),
+        'user': os.getenv('DB_USER', 'postgres'),
+        'password': os.getenv('DB_PASSWORD', ''),
+        'port': os.getenv('DB_PORT', 5432)
+    }
+else:
+    DB_CONFIG = {
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'database': os.getenv('DB_NAME', 'eduverse'),
+        'user': os.getenv('DB_USER', 'root'),
+        'password': os.getenv('DB_PASSWORD', ''),
+        'charset': 'utf8mb4',
+        'autocommit': True
+    }
+
+def get_db_connection():
+    """Get database connection based on DB_TYPE"""
+    if DB_TYPE == 'postgresql':
+        return psycopg2.connect(**DB_CONFIG)
+    else:
+        return get_db_connection()
 
 # Store verification codes (in production, use database)
 verification_codes = {}
@@ -120,7 +137,7 @@ class EduVerse:
     def setup_database(self):
         """Initialize database tables"""
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             # Create users table
@@ -203,7 +220,7 @@ class EduVerse:
         """Test if database connection is working"""
         try:
             if self.db_available:
-                connection = pymysql.connect(**DB_CONFIG)
+                connection = get_db_connection()
                 cursor = connection.cursor()
                 cursor.execute("SELECT 1")
                 cursor.close()
@@ -241,7 +258,7 @@ class EduVerse:
     def test_database_connection(self):
         """Test database connection and return status"""
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             cursor.execute("SELECT 1")
             result = cursor.fetchone()
@@ -256,7 +273,7 @@ class EduVerse:
             return None
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
@@ -279,7 +296,7 @@ class EduVerse:
             return False
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
@@ -302,7 +319,7 @@ class EduVerse:
             return {'total_sessions': 0, 'total_cards': 0, 'total_correct': 0, 'success_rate': 0}
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
@@ -342,7 +359,7 @@ class EduVerse:
             return None
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
@@ -375,7 +392,7 @@ class EduVerse:
             return False
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
@@ -398,7 +415,7 @@ class EduVerse:
             return False
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
@@ -420,7 +437,7 @@ class EduVerse:
             return None
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
@@ -483,7 +500,7 @@ class EduVerse:
             return False
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
@@ -506,7 +523,7 @@ class EduVerse:
             return False
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             subscription_start = datetime.now()
@@ -555,7 +572,7 @@ class EduVerse:
             return False, "Database not available"
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             # Hash password
@@ -593,7 +610,7 @@ class EduVerse:
             return None
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             password_hash = hashlib.sha256(password.encode()).hexdigest()
@@ -625,7 +642,7 @@ class EduVerse:
         if not self.db_available:
             return None
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             cursor.execute(
                 "SELECT id, username, email, email_verified FROM users WHERE email = %s",
@@ -652,7 +669,7 @@ class EduVerse:
         if not self.db_available:
             return None
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             # Use a placeholder password hash; user authenticates via provider
             placeholder_hash = hashlib.sha256((email + 'oauth').encode()).hexdigest()
@@ -914,7 +931,7 @@ class EduVerse:
             return False
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             # First, let's check if the table has the new columns
@@ -956,7 +973,7 @@ class EduVerse:
             return []
         
         try:
-            connection = pymysql.connect(**DB_CONFIG)
+            connection = get_db_connection()
             cursor = connection.cursor()
             
             if topic:
@@ -1196,7 +1213,7 @@ def verify_email(email):
         if email in verification_codes and verification_codes[email] == code:
             # Mark email as verified in database
             try:
-                connection = pymysql.connect(**DB_CONFIG)
+                connection = get_db_connection()
                 cursor = connection.cursor()
                 cursor.execute(
                     "UPDATE users SET email_verified = TRUE WHERE email = %s",
