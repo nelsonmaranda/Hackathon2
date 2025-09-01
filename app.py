@@ -143,7 +143,7 @@ class EduVerse:
             # Create users table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    id SERIAL PRIMARY KEY,
                     username VARCHAR(50) UNIQUE NOT NULL,
                     email VARCHAR(100) UNIQUE NOT NULL,
                     password_hash VARCHAR(255) NOT NULL,
@@ -155,12 +155,12 @@ class EduVerse:
             # Create flashcards table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS flashcards (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    id SERIAL PRIMARY KEY,
                     user_id INT,
                     question TEXT NOT NULL,
                     answer TEXT NOT NULL,
                     topic VARCHAR(255),
-                    difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
+                    difficulty VARCHAR(10) DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
                     question_type VARCHAR(50) DEFAULT 'short_answer',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_reviewed TIMESTAMP NULL,
@@ -172,7 +172,7 @@ class EduVerse:
             # Create study_sessions table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS study_sessions (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    id SERIAL PRIMARY KEY,
                     user_id INT,
                     session_date DATE,
                     cards_studied INT DEFAULT 0,
@@ -185,18 +185,18 @@ class EduVerse:
             # Create subscriptions table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS subscriptions (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    id SERIAL PRIMARY KEY,
                     user_id INT UNIQUE,
-                    subscription_type ENUM('trial', 'premium') DEFAULT 'trial',
-                    status ENUM('active', 'cancelled', 'expired') DEFAULT 'active',
-                    trial_start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    trial_end_date DATETIME,
-                    subscription_start_date DATETIME NULL,
-                    subscription_end_date DATETIME NULL,
+                    subscription_type VARCHAR(10) DEFAULT 'trial' CHECK (subscription_type IN ('trial', 'premium')),
+                    status VARCHAR(10) DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'expired')),
+                    trial_start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    trial_end_date TIMESTAMP,
+                    subscription_start_date TIMESTAMP NULL,
+                    subscription_end_date TIMESTAMP NULL,
                     intasend_payment_id VARCHAR(255) NULL,
                     amount_paid DECIMAL(10,2) DEFAULT 0.00,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 )
             """)
@@ -228,7 +228,7 @@ class EduVerse:
                 return True
             return False
         except Exception as e:
-            logger.error(f"Database connection test failed: {e}")
+            print(f"Database connection test failed: {e}")
             return False
     
     def _upgrade_database_schema(self, connection):
@@ -236,17 +236,34 @@ class EduVerse:
         try:
             cursor = connection.cursor()
             
-            # Check if question_type column exists in flashcards table
-            cursor.execute("SHOW COLUMNS FROM flashcards LIKE 'question_type'")
-            if not cursor.fetchone():
-                print("Adding question_type column to flashcards table...")
-                cursor.execute("ALTER TABLE flashcards ADD COLUMN question_type VARCHAR(50) DEFAULT 'short_answer'")
-            
-            # Check if difficulty column exists in flashcards table
-            cursor.execute("SHOW COLUMNS FROM flashcards LIKE 'difficulty'")
-            if not cursor.fetchone():
-                print("Adding difficulty column to flashcards table...")
-                cursor.execute("ALTER TABLE flashcards ADD COLUMN difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium'")
+            if DB_TYPE == 'postgresql':
+                # PostgreSQL syntax for checking columns
+                cursor.execute("""
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'flashcards' AND column_name = 'question_type'
+                """)
+                if not cursor.fetchone():
+                    print("Adding question_type column to flashcards table...")
+                    cursor.execute("ALTER TABLE flashcards ADD COLUMN question_type VARCHAR(50) DEFAULT 'short_answer'")
+                
+                cursor.execute("""
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'flashcards' AND column_name = 'difficulty'
+                """)
+                if not cursor.fetchone():
+                    print("Adding difficulty column to flashcards table...")
+                    cursor.execute("ALTER TABLE flashcards ADD COLUMN difficulty VARCHAR(10) DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard'))")
+            else:
+                # MySQL syntax for checking columns
+                cursor.execute("SHOW COLUMNS FROM flashcards LIKE 'question_type'")
+                if not cursor.fetchone():
+                    print("Adding question_type column to flashcards table...")
+                    cursor.execute("ALTER TABLE flashcards ADD COLUMN question_type VARCHAR(50) DEFAULT 'short_answer'")
+                
+                cursor.execute("SHOW COLUMNS FROM flashcards LIKE 'difficulty'")
+                if not cursor.fetchone():
+                    print("Adding difficulty column to flashcards table...")
+                    cursor.execute("ALTER TABLE flashcards ADD COLUMN difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium'")
             
             connection.commit()
             print("Database schema upgrade completed!")
@@ -276,13 +293,23 @@ class EduVerse:
             connection = get_db_connection()
             cursor = connection.cursor()
             
-            cursor.execute("""
-                INSERT INTO study_sessions (user_id, session_date, cards_studied, correct_answers, total_time_minutes)
-                VALUES (%s, CURDATE(), 0, 0, 0)
-            """, (user_id,))
+            if DB_TYPE == 'postgresql':
+                cursor.execute("""
+                    INSERT INTO study_sessions (user_id, session_date, cards_studied, correct_answers, total_time_minutes)
+                    VALUES (%s, CURRENT_DATE, 0, 0, 0)
+                """, (user_id,))
+            else:
+                cursor.execute("""
+                    INSERT INTO study_sessions (user_id, session_date, cards_studied, correct_answers, total_time_minutes)
+                    VALUES (%s, CURDATE(), 0, 0, 0)
+                """, (user_id,))
             
             connection.commit()
-            session_id = cursor.lastrowid
+            if DB_TYPE == 'postgresql':
+                cursor.execute("SELECT LASTVAL()")
+                session_id = cursor.fetchone()[0]
+            else:
+                session_id = cursor.lastrowid
             connection.close()
             return session_id
             
@@ -582,7 +609,11 @@ class EduVerse:
                 "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)",
                 (username, email, password_hash)
             )
-            user_id = cursor.lastrowid
+            if DB_TYPE == 'postgresql':
+                cursor.execute("SELECT LASTVAL()")
+                user_id = cursor.fetchone()[0]
+            else:
+                user_id = cursor.lastrowid
             
             # Create trial subscription for new user
             trial_end_date = datetime.now() + timedelta(days=7)
@@ -594,11 +625,9 @@ class EduVerse:
             connection.commit()
             return True, "User created successfully"
             
-        except pymysql.IntegrityError as e:
-            if "Duplicate entry" in str(e):
-                return False, "Username or email already exists"
-            return False, "Database error"
         except Exception as e:
+            if "Duplicate entry" in str(e) or "duplicate key" in str(e).lower():
+                return False, "Username or email already exists"
             return False, f"Error creating user: {e}"
         finally:
             if 'connection' in locals():
@@ -680,7 +709,7 @@ class EduVerse:
             connection.commit()
             # Return created user
             return self.get_user_by_email(email)
-        except pymysql.IntegrityError:
+        except Exception:
             # If user already exists, just return it
             return self.get_user_by_email(email)
         except Exception as e:
@@ -935,7 +964,13 @@ class EduVerse:
             cursor = connection.cursor()
             
             # First, let's check if the table has the new columns
-            cursor.execute("DESCRIBE flashcards")
+            if DB_TYPE == 'postgresql':
+                cursor.execute("""
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'flashcards'
+                """)
+            else:
+                cursor.execute("DESCRIBE flashcards")
             columns = [column[0] for column in cursor.fetchall()]
             
             for card in cards:
@@ -1548,6 +1583,14 @@ def debug_database():
         'connection_message': db_status[1],
         'user_id': session['user_id']
     })
+
+def cleanup_expired_data():
+    """Clean up expired data on startup"""
+    try:
+        # This function can be implemented later to clean up expired sessions, etc.
+        pass
+    except Exception as e:
+        print(f"Cleanup error: {e}")
 
 if __name__ == '__main__':
     print("Starting EduVerse application...")
