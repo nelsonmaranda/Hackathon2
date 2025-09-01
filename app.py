@@ -1476,4 +1476,8 @@ def debug_database():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    # Clean up expired data on startup
+    cleanup_expired_data()
+    # Use Railway's PORT environment variable
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
