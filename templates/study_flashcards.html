@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Flashcards - {{ topic }} - EduVerse</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .logo i {
+            font-size: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #667eea;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .page-header p {
+            font-size: 1.1rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .topic-badge {
+            background: #667eea;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+
+        /* Study Controls */
+        .study-controls {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .progress-item {
+            text-align: center;
+        }
+
+        .progress-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .progress-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e1e5e9;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Flashcard */
+        .flashcard-container {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            text-align: center;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .flashcard {
+            width: 100%;
+            max-width: 600px;
+            perspective: 1000px;
+            margin: 0 auto;
+        }
+
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            text-align: center;
+            transition: transform 0.8s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flashcard-front,
+        .flashcard-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .flashcard-front {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .flashcard-back {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            transform: rotateY(180deg);
+        }
+
+        .flashcard-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        .flashcard-content {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        .flashcard-hint {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 1rem;
+        }
+
+        /* Navigation */
+        .card-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Answer Feedback */
+        .answer-feedback {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .feedback-text {
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .feedback-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .feedback-btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .feedback-btn.correct {
+            background: #27ae60;
+            color: white;
+        }
+
+        .feedback-btn.correct:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+
+        .feedback-btn.incorrect {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .feedback-btn.incorrect:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        /* Flash Messages */
+        .flash-messages {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            z-index: 1001;
+        }
+
+        .flash-message {
+            background: #4CAF50;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+        }
+
+        .flash-message.error {
+            background: #e74c3c;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 0 1rem;
+            }
+
+            .main-content {
+                padding: 0 1rem;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .flashcard-container {
+                padding: 2rem 1rem;
+            }
+
+            .flashcard-inner {
+                height: 250px;
+            }
+
+            .flashcard-content {
+                font-size: 1rem;
+            }
+
+            .control-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for message in messages %}
+                    <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-brain"></i>
+                <span>EduVerse</span>
+            </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="{{ url_for('generate_flashcards') }}">
+                    <i class="fas fa-plus"></i> Generate More
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="topic-badge">
+                <i class="fas fa-tag"></i> {{ topic }}
+            </div>
+            <h1>Study Session</h1>
+            <p>Click on the flashcard to flip it and reveal the answer. Use the navigation buttons to move between cards.</p>
+        </div>
+
+        <!-- Study Controls -->
+        <div class="study-controls">
+            <div class="progress-info">
+                <div class="progress-item">
+                    <div class="progress-number" id="current-card">1</div>
+                    <div class="progress-label">Current</div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-number" id="total-cards">{{ flashcards|length }}</div>
+                    <div class="progress-label">Total</div>
+                </div>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="control-buttons">
+                <button class="btn btn-secondary" onclick="shuffleCards()">
+                    <i class="fas fa-random"></i> Shuffle
+                </button>
+                <button class="btn btn-primary" onclick="resetSession()">
+                    <i class="fas fa-redo"></i> Restart
+                </button>
+            </div>
+        </div>
+
+        <!-- Flashcard -->
+        <div class="flashcard-container">
+            <div class="flashcard" id="flashcard" onclick="flipCard()">
+                <div class="flashcard-inner">
+                    <div class="flashcard-front">
+                        <div class="flashcard-icon">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <div class="flashcard-content" id="question-content">
+                            {{ flashcards[0].question if flashcards else 'No flashcards available' }}
+                        </div>
+                        <div class="flashcard-hint">
+                            Click to reveal answer
+                        </div>
+                    </div>
+                    <div class="flashcard-back">
+                        <div class="flashcard-icon">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <div class="flashcard-content" id="answer-content">
+                            {{ flashcards[0].answer if flashcards else 'No flashcards available' }}
+                        </div>
+                        <div class="flashcard-hint">
+                            Click to see question
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Navigation -->
+            <div class="card-navigation">
+                <button class="nav-btn" id="prev-btn" onclick="previousCard()" disabled>
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+                <button class="nav-btn" id="next-btn" onclick="nextCard()">
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Answer Feedback -->
+            <div class="answer-feedback" id="answer-feedback" style="display: none;">
+                <p class="feedback-text">How well did you know this answer?</p>
+                <div class="feedback-buttons">
+                    <button class="feedback-btn correct" onclick="markAnswer('correct')">
+                        <i class="fas fa-check"></i> I knew it
+                    </button>
+                    <button class="feedback-btn incorrect" onclick="markAnswer('incorrect')">
+                        <i class="fas fa-times"></i> I didn't know it
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Flashcard data
+        const flashcards = {{ flashcards|tojson }};
+        const sessionId = {{ session_id|tojson }};
+        let currentCardIndex = 0;
+        let isFlipped = false;
+        
+        // Answer tracking
+        let answerResults = [];
+        let sessionStartTime = Date.now();
+
+        // Initialize the study session
+        function initializeSession() {
+            updateProgress();
+            updateNavigationButtons();
+            updateCardContent();
+        }
+
+        // Update progress bar and counters
+        function updateProgress() {
+            const currentCardElement = document.getElementById('current-card');
+            const progressFill = document.getElementById('progress-fill');
+            
+            currentCardElement.textContent = currentCardIndex + 1;
+            
+            const progress = ((currentCardIndex + 1) / flashcards.length) * 100;
+            progressFill.style.width = progress + '%';
+        }
+
+        // Update navigation buttons
+        function updateNavigationButtons() {
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            
+            prevBtn.disabled = currentCardIndex === 0;
+            nextBtn.disabled = currentCardIndex === flashcards.length - 1;
+        }
+
+        // Update card content
+        function updateCardContent() {
+            const questionContent = document.getElementById('question-content');
+            const answerContent = document.getElementById('answer-content');
+            
+            questionContent.textContent = flashcards[currentCardIndex].question;
+            answerContent.textContent = flashcards[currentCardIndex].answer;
+            
+            // Reset card to front
+            const flashcard = document.getElementById('flashcard');
+            flashcard.classList.remove('flipped');
+            isFlipped = false;
+        }
+
+        // Flip the current card
+        function flipCard() {
+            const flashcard = document.getElementById('flashcard');
+            flashcard.classList.toggle('flipped');
+            isFlipped = !isFlipped;
+            
+            // Show answer feedback when card is flipped to back
+            if (isFlipped) {
+                showAnswerFeedback();
+            } else {
+                hideAnswerFeedback();
+            }
+        }
+        
+        // Show answer feedback section
+        function showAnswerFeedback() {
+            const feedbackSection = document.getElementById('answer-feedback');
+            feedbackSection.style.display = 'block';
+        }
+        
+        // Hide answer feedback section
+        function hideAnswerFeedback() {
+            const feedbackSection = document.getElementById('answer-feedback');
+            feedbackSection.style.display = 'none';
+        }
+        
+        // Mark answer as correct or incorrect
+        function markAnswer(result) {
+            // Record the answer for current card
+            answerResults[currentCardIndex] = result;
+            
+            // Hide feedback for this card
+            hideAnswerFeedback();
+            
+            // Auto-advance to next card if available
+            if (currentCardIndex < flashcards.length - 1) {
+                nextCard();
+            } else {
+                // Session complete - submit results
+                submitStudyResults();
+            }
+        }
+        
+        // Submit study session results
+        function submitStudyResults() {
+            const totalCards = flashcards.length;
+            const correctAnswers = answerResults.filter(result => result === 'correct').length;
+            const sessionTime = Math.round((Date.now() - sessionStartTime) / 60000); // Convert to minutes
+            
+            fetch('/submit_study_results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    cards_studied: totalCards,
+                    correct_answers: correctAnswers,
+                    time_minutes: sessionTime
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show completion message
+                    alert(`Study session completed!\nCards studied: ${totalCards}\nCorrect answers: ${correctAnswers}\nSuccess rate: ${Math.round((correctAnswers/totalCards)*100)}%\nTime: ${sessionTime} minutes`);
+                    // Redirect to dashboard
+                    window.location.href = '/dashboard';
+                } else {
+                    alert('Error saving study results: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving study results. Please try again.');
+            });
+        }
+
+        // Go to next card
+        function nextCard() {
+            if (currentCardIndex < flashcards.length - 1) {
+                currentCardIndex++;
+                updateProgress();
+                updateNavigationButtons();
+                updateCardContent();
+            }
+        }
+
+        // Go to previous card
+        function previousCard() {
+            if (currentCardIndex > 0) {
+                currentCardIndex--;
+                updateProgress();
+                updateNavigationButtons();
+                updateCardContent();
+            }
+        }
+
+        // Shuffle cards
+        function shuffleCards() {
+            for (let i = flashcards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [flashcards[i], flashcards[j]] = [flashcards[j], flashcards[i]];
+            }
+            currentCardIndex = 0;
+            updateProgress();
+            updateNavigationButtons();
+            updateCardContent();
+        }
+
+        // Reset study session
+        function resetSession() {
+            currentCardIndex = 0;
+            updateProgress();
+            updateNavigationButtons();
+            updateCardContent();
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    if (currentCardIndex > 0) {
+                        previousCard();
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (currentCardIndex < flashcards.length - 1) {
+                        nextCard();
+                    }
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    flipCard();
+                    break;
+            }
+        });
+
+        // Auto-hide flash messages
+        setTimeout(() => {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                message.style.opacity = '0';
+                setTimeout(() => message.remove(), 300);
+            });
+        }, 5000);
+
+        // Initialize the session when page loads
+        document.addEventListener('DOMContentLoaded', initializeSession);
+    </script>
+</body>
+</html>
+
