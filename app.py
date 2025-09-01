@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from authlib.integrations.flask_client import OAuth
 from flask_mail import Mail, Message
+from functools import wraps
 import requests
 import os
 import json
@@ -46,6 +47,9 @@ DB_CONFIG = {
 
 # Store verification codes (in production, use database)
 verification_codes = {}
+
+# Rate limiting storage (in production, use Redis or database)
+rate_limit_store = {}
 
 # IntaSend Payment Configuration
 INTASEND_PUBLISHABLE_KEY = os.getenv('INTASEND_PUBLISHABLE_KEY')
@@ -101,6 +105,12 @@ if GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET:
         api_base_url='https://api.github.com/',
         client_kwargs={'scope': 'read:user user:email'}
     )
+
+# Add OAuth credentials to app config for template access
+app.config['GOOGLE_CLIENT_ID'] = GOOGLE_CLIENT_ID
+app.config['GOOGLE_CLIENT_SECRET'] = GOOGLE_CLIENT_SECRET
+app.config['GITHUB_CLIENT_ID'] = GITHUB_CLIENT_ID
+app.config['GITHUB_CLIENT_SECRET'] = GITHUB_CLIENT_SECRET
 
 class EduVerse:
     def __init__(self):
@@ -1153,7 +1163,6 @@ def verify_email(email):
 
 def require_subscription(f):
     """Decorator to check if user has active subscription"""
-    from functools import wraps
     
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -1166,6 +1175,40 @@ def require_subscription(f):
         
         return f(*args, **kwargs)
     return decorated_function
+
+def require_auth(f):
+    """Decorator to check if user is authenticated"""
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def rate_limit(limit=10, window=60):
+    """Rate limiting decorator"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' in session:
+                user_id = session['user_id']
+                current_time = datetime.now()
+                
+                # Clean old entries
+                rate_limit_store = {k: v for k, v in rate_limit_store.items() 
+                                  if (current_time - v['timestamp']).seconds < window}
+                
+                if user_id in rate_limit_store:
+                    if rate_limit_store[user_id]['count'] >= limit:
+                        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+                    rate_limit_store[user_id]['count'] += 1
+                else:
+                    rate_limit_store[user_id] = {'count': 1, 'timestamp': current_time}
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 @app.route('/dashboard')
 def dashboard():
@@ -1397,6 +1440,24 @@ def api_flashcards(topic):
     
     flashcards = eduverse.get_user_flashcards(session['user_id'], topic)
     return jsonify(flashcards)
+
+@app.route('/debug/environment')
+def debug_environment():
+    """Debug route to check environment variables"""
+    return jsonify({
+        'google_client_id_set': bool(GOOGLE_CLIENT_ID),
+        'google_client_secret_set': bool(GOOGLE_CLIENT_SECRET),
+        'github_client_id_set': bool(GITHUB_CLIENT_ID),
+        'github_client_secret_set': bool(GITHUB_CLIENT_SECRET),
+        'google_oauth_registered': 'google' in oauth._clients,
+        'github_oauth_registered': 'github' in oauth._clients,
+        'all_env_vars': {
+            'GOOGLE_CLIENT_ID': 'SET' if GOOGLE_CLIENT_ID else 'NOT SET',
+            'GOOGLE_CLIENT_SECRET': 'SET' if GOOGLE_CLIENT_SECRET else 'NOT SET',
+            'GITHUB_CLIENT_ID': 'SET' if GITHUB_CLIENT_ID else 'NOT SET',
+            'GITHUB_CLIENT_SECRET': 'SET' if GITHUB_CLIENT_SECRET else 'NOT SET',
+        }
+    })
 
 @app.route('/debug/database')
 def debug_database():

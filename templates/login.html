@@ -337,10 +337,12 @@
                     <i class="fab fa-google"></i>
                     <span>Google</span>
                 </a>
+                {% if config.get('GITHUB_CLIENT_ID') and config.get('GITHUB_CLIENT_SECRET') %}
                 <a href="{{ url_for('auth_github') }}" class="social-btn">
                     <i class="fab fa-github"></i>
                     <span>GitHub</span>
                 </a>
+                {% endif %}
             </div>
 
             <div class="signup-link">
