@@ -1,19 +1,19 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from authlib.integrations.flask_client import OAuth
-from flask_mail import Mail, Message
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash  # pyright: ignore[reportMissingImports]
+from authlib.integrations.flask_client import OAuth  # pyright: ignore[reportMissingImports]
+from flask_mail import Mail, Message  # pyright: ignore[reportMissingImports]
 from functools import wraps
-import requests
+import requests  # pyright: ignore[reportMissingModuleSource]
 import os
 import json
 import re
 import uuid
 import random
 from datetime import datetime, timedelta
-import psycopg2
-from dotenv import load_dotenv
+import psycopg2  # pyright: ignore[reportMissingModuleSource]
+from dotenv import load_dotenv  # pyright: ignore[reportMissingImports]
 import hashlib
 import secrets
-import intasend
+import intasend  # pyright: ignore[reportMissingImports]
 
 # Load environment variables
 load_dotenv()
