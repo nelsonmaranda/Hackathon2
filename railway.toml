@@ -1,0 +1,9 @@
+[build]
+# Force Railway to use Dockerfile instead of nixpacks
+builder = "dockerfile"
+
+[deploy]
+startCommand = "python -u app.py"
+healthcheckPath = "/"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
