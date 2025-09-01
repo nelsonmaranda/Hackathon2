@@ -199,6 +199,21 @@ class EduVerse:
             if 'connection' in locals():
                 connection.close()
     
+    def test_connection(self):
+        """Test if database connection is working"""
+        try:
+            if self.db_available:
+                connection = pymysql.connect(**DB_CONFIG)
+                cursor = connection.cursor()
+                cursor.execute("SELECT 1")
+                cursor.close()
+                connection.close()
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Database connection test failed: {e}")
+            return False
+    
     def _upgrade_database_schema(self, connection):
         """Upgrade database schema to add new columns if they don't exist"""
         try:
@@ -986,6 +1001,19 @@ def index():
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
     return render_template('index.html')
+
+@app.route('/health')
+def health_check():
+    """Simple health check endpoint for Railway"""
+    try:
+        # Try to connect to database
+        if eduverse.test_connection():
+            return {'status': 'healthy', 'database': 'connected'}, 200
+        else:
+            return {'status': 'degraded', 'database': 'disconnected'}, 200
+    except Exception as e:
+        # App is running but database connection failed
+        return {'status': 'degraded', 'database': 'error', 'message': str(e)}, 200
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
