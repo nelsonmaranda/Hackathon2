@@ -51,8 +51,10 @@ else:
         'database': os.getenv('DB_NAME'),
         'user': os.getenv('DB_USER'),
         'password': os.getenv('DB_PASSWORD'),
+        'port': os.getenv('DB_PORT', '3306'),
         'charset': 'utf8mb4',
-        'autocommit': True
+        'autocommit': True,
+        'ssl_disabled': True
     }
 
 def get_db_connection():
@@ -60,7 +62,8 @@ def get_db_connection():
     if DB_TYPE == 'postgresql':
         return psycopg2.connect(**DB_CONFIG)
     else:
-        return get_db_connection()
+        import pymysql
+        return pymysql.connect(**DB_CONFIG)
 
 # Store verification codes (in production, use database)
 verification_codes = {}
@@ -141,65 +144,126 @@ class EduVerse:
             cursor = connection.cursor()
             
             # Create users table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username VARCHAR(50) UNIQUE NOT NULL,
-                    email VARCHAR(100) UNIQUE NOT NULL,
-                    password_hash VARCHAR(255) NOT NULL,
-                    email_verified BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+            if DB_TYPE == 'postgresql':
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id SERIAL PRIMARY KEY,
+                        username VARCHAR(50) UNIQUE NOT NULL,
+                        email VARCHAR(100) UNIQUE NOT NULL,
+                        password_hash VARCHAR(255) NOT NULL,
+                        email_verified BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(50) UNIQUE NOT NULL,
+                        email VARCHAR(100) UNIQUE NOT NULL,
+                        password_hash VARCHAR(255) NOT NULL,
+                        email_verified BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
             
             # Create flashcards table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS flashcards (
-                    id SERIAL PRIMARY KEY,
-                    user_id INT,
-                    question TEXT NOT NULL,
-                    answer TEXT NOT NULL,
-                    topic VARCHAR(255),
-                    difficulty VARCHAR(10) DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
-                    question_type VARCHAR(50) DEFAULT 'short_answer',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_reviewed TIMESTAMP NULL,
-                    review_count INT DEFAULT 0,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-            """)
+            if DB_TYPE == 'postgresql':
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS flashcards (
+                        id SERIAL PRIMARY KEY,
+                        user_id INT,
+                        question TEXT NOT NULL,
+                        answer TEXT NOT NULL,
+                        topic VARCHAR(255),
+                        difficulty VARCHAR(10) DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
+                        question_type VARCHAR(50) DEFAULT 'short_answer',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_reviewed TIMESTAMP NULL,
+                        review_count INT DEFAULT 0,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS flashcards (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT,
+                        question TEXT NOT NULL,
+                        answer TEXT NOT NULL,
+                        topic VARCHAR(255),
+                        difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
+                        question_type VARCHAR(50) DEFAULT 'short_answer',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_reviewed TIMESTAMP NULL,
+                        review_count INT DEFAULT 0,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
             
             # Create study_sessions table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS study_sessions (
-                    id SERIAL PRIMARY KEY,
-                    user_id INT,
-                    session_date DATE,
-                    cards_studied INT DEFAULT 0,
-                    correct_answers INT DEFAULT 0,
-                    total_time_minutes INT DEFAULT 0,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-            """)
+            if DB_TYPE == 'postgresql':
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS study_sessions (
+                        id SERIAL PRIMARY KEY,
+                        user_id INT,
+                        session_date DATE,
+                        cards_studied INT DEFAULT 0,
+                        correct_answers INT DEFAULT 0,
+                        total_time_minutes INT DEFAULT 0,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS study_sessions (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT,
+                        session_date DATE,
+                        cards_studied INT DEFAULT 0,
+                        correct_answers INT DEFAULT 0,
+                        total_time_minutes INT DEFAULT 0,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
             
             # Create subscriptions table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS subscriptions (
-                    id SERIAL PRIMARY KEY,
-                    user_id INT UNIQUE,
-                    subscription_type VARCHAR(10) DEFAULT 'trial' CHECK (subscription_type IN ('trial', 'premium')),
-                    status VARCHAR(10) DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'expired')),
-                    trial_start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    trial_end_date TIMESTAMP,
-                    subscription_start_date TIMESTAMP NULL,
-                    subscription_end_date TIMESTAMP NULL,
-                    intasend_payment_id VARCHAR(255) NULL,
-                    amount_paid DECIMAL(10,2) DEFAULT 0.00,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-            """)
+            if DB_TYPE == 'postgresql':
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS subscriptions (
+                        id SERIAL PRIMARY KEY,
+                        user_id INT UNIQUE,
+                        subscription_type VARCHAR(10) DEFAULT 'trial' CHECK (subscription_type IN ('trial', 'premium')),
+                        status VARCHAR(10) DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'expired')),
+                        trial_start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        trial_end_date TIMESTAMP,
+                        subscription_start_date TIMESTAMP NULL,
+                        subscription_end_date TIMESTAMP NULL,
+                        intasend_payment_id VARCHAR(255) NULL,
+                        amount_paid DECIMAL(10,2) DEFAULT 0.00,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS subscriptions (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT UNIQUE,
+                        subscription_type ENUM('trial', 'premium') DEFAULT 'trial',
+                        status ENUM('active', 'cancelled', 'expired') DEFAULT 'active',
+                        trial_start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        trial_end_date TIMESTAMP,
+                        subscription_start_date TIMESTAMP NULL,
+                        subscription_end_date TIMESTAMP NULL,
+                        intasend_payment_id VARCHAR(255) NULL,
+                        amount_paid DECIMAL(10,2) DEFAULT 0.00,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
             
             connection.commit()
             
@@ -564,9 +628,9 @@ class EduVerse:
                     subscription_end_date = %s,
                     intasend_payment_id = %s,
                     amount_paid = %s,
-                    updated_at = CURRENT_TIMESTAMP
+                    updated_at = %s
                 WHERE user_id = %s
-            """, (subscription_start, subscription_end, payment_id, amount_paid, user_id))
+            """, (subscription_start, subscription_end, payment_id, amount_paid, datetime.now(), user_id))
             
             connection.commit()
             connection.close()
