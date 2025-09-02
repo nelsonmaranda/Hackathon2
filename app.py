@@ -37,13 +37,22 @@ HF_HEADERS = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY', '')}"}
 
 # Database configuration
 DB_TYPE = os.getenv('DB_TYPE', 'postgresql')
+
+# Debug: Print environment variables
+print(f"DEBUG: DB_TYPE = {DB_TYPE}")
+print(f"DEBUG: DB_HOST = {os.getenv('DB_HOST')}")
+print(f"DEBUG: DB_NAME = {os.getenv('DB_NAME')}")
+print(f"DEBUG: DB_USER = {os.getenv('DB_USER')}")
+print(f"DEBUG: DB_PASSWORD = {'SET' if os.getenv('DB_PASSWORD') else 'NOT SET'}")
+print(f"DEBUG: DB_PORT = {os.getenv('DB_PORT')}")
+
 if DB_TYPE == 'postgresql':
     DB_CONFIG = {
         'host': os.getenv('DB_HOST'),
         'database': os.getenv('DB_NAME'),
         'user': os.getenv('DB_USER'),
         'password': os.getenv('DB_PASSWORD'),
-        'port': os.getenv('DB_PORT')
+        'port': os.getenv('DB_PORT', '5432')
     }
 else:
     DB_CONFIG = {
@@ -51,19 +60,53 @@ else:
         'database': os.getenv('DB_NAME'),
         'user': os.getenv('DB_USER'),
         'password': os.getenv('DB_PASSWORD'),
-        'port': os.getenv('DB_PORT', '21345'),
+        'port': os.getenv('DB_PORT', '3306'),
         'charset': 'utf8mb4',
         'autocommit': True,
         'ssl_disabled': True
     }
 
+# Debug: Print final DB_CONFIG
+print(f"DEBUG: Final DB_CONFIG = {DB_CONFIG}")
+
+def is_database_configured():
+    """Check if database is properly configured"""
+    required_fields = ['host', 'database', 'user', 'password']
+    missing_fields = [field for field in required_fields if not DB_CONFIG.get(field)]
+    
+    if missing_fields:
+        print(f"WARNING: Missing database configuration: {missing_fields}")
+        return False
+    
+    # Check if any values are placeholder strings
+    placeholder_values = ['${PGHOST}', '${PGDATABASE}', '${PGUSER}', '${PGPASSWORD}', '${PGPORT}']
+    for key, value in DB_CONFIG.items():
+        if value in placeholder_values:
+            print(f"WARNING: Placeholder value found in {key}: {value}")
+            return False
+    
+    return True
+
 def get_db_connection():
     """Get database connection based on DB_TYPE"""
-    if DB_TYPE == 'postgresql':
-        return psycopg2.connect(**DB_CONFIG)
-    else:
-        import pymysql
-        return pymysql.connect(**DB_CONFIG)
+    # Check if we have the minimum required database credentials
+    if not all([DB_CONFIG.get('host'), DB_CONFIG.get('database'), DB_CONFIG.get('user'), DB_CONFIG.get('password')]):
+        print("ERROR: Missing required database credentials")
+        print(f"Host: {DB_CONFIG.get('host')}")
+        print(f"Database: {DB_CONFIG.get('database')}")
+        print(f"User: {DB_CONFIG.get('user')}")
+        print(f"Password: {'SET' if DB_CONFIG.get('password') else 'NOT SET'}")
+        raise ValueError("Missing required database credentials")
+    
+    try:
+        if DB_TYPE == 'postgresql':
+            return psycopg2.connect(**DB_CONFIG)
+        else:
+            import pymysql
+            return pymysql.connect(**DB_CONFIG)
+    except Exception as e:
+        print(f"Database connection error: {e}")
+        raise
 
 # Store verification codes (in production, use database)
 verification_codes = {}
@@ -134,8 +177,14 @@ app.config['GITHUB_CLIENT_SECRET'] = GITHUB_CLIENT_SECRET
 
 class EduVerse:
     def __init__(self):
-        self.db_available = True  # TEMPORARY: Skip database setup for testing
-        # self.setup_database()  # Commented out temporarily
+        # Check if database is properly configured
+        if is_database_configured():
+            print("Database configuration looks good, attempting setup...")
+            self.db_available = False  # Will be set to True if setup succeeds
+            self.setup_database()
+        else:
+            print("Database not properly configured, using temporary bypass")
+            self.db_available = True  # TEMPORARY: Skip database setup for testing
     
     def setup_database(self):
         """Initialize database tables"""
