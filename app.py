@@ -51,7 +51,7 @@ else:
         'database': os.getenv('DB_NAME'),
         'user': os.getenv('DB_USER'),
         'password': os.getenv('DB_PASSWORD'),
-        'port': os.getenv('DB_PORT', '3306'),
+        'port': os.getenv('DB_PORT', '21345'),
         'charset': 'utf8mb4',
         'autocommit': True,
         'ssl_disabled': True
@@ -134,8 +134,8 @@ app.config['GITHUB_CLIENT_SECRET'] = GITHUB_CLIENT_SECRET
 
 class EduVerse:
     def __init__(self):
-        self.db_available = False
-        self.setup_database()
+        self.db_available = True  # TEMPORARY: Skip database setup for testing
+        # self.setup_database()  # Commented out temporarily
     
     def setup_database(self):
         """Initialize database tables"""
