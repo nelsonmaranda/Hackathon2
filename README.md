@@ -23,7 +23,7 @@ EduVerse is an innovative AI-powered learning platform that transforms study not
 
 ## 🚀 Live Demo
 
-**Coming Soon!** - Deploy to Railway for live access
+(https://eduverseai.up.railway.app/)
 
 ## 🏗️ Architecture
 
