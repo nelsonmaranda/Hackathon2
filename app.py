@@ -52,7 +52,11 @@ if DB_TYPE == 'postgresql':
         'database': os.getenv('DB_NAME'),
         'user': os.getenv('DB_USER'),
         'password': os.getenv('DB_PASSWORD'),
-        'port': os.getenv('DB_PORT', '5432')
+        'port': os.getenv('DB_PORT', '5432'),
+        'sslmode': 'require',  # Railway requires SSL
+        'sslcert': None,
+        'sslkey': None,
+        'sslrootcert': None
     }
 else:
     DB_CONFIG = {
@@ -100,7 +104,17 @@ def get_db_connection():
     
     try:
         if DB_TYPE == 'postgresql':
-            return psycopg2.connect(**DB_CONFIG)
+            # Try with SSL first, then fallback to no SSL if needed
+            try:
+                print("Attempting PostgreSQL connection with SSL...")
+                return psycopg2.connect(**DB_CONFIG)
+            except Exception as ssl_error:
+                print(f"SSL connection failed: {ssl_error}")
+                print("Attempting connection without SSL...")
+                # Remove SSL settings and try again
+                no_ssl_config = {k: v for k, v in DB_CONFIG.items() 
+                               if k not in ['sslmode', 'sslcert', 'sslkey', 'sslrootcert']}
+                return psycopg2.connect(**no_ssl_config)
         else:
             import pymysql
             return pymysql.connect(**DB_CONFIG)
